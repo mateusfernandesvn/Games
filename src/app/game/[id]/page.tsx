@@ -4,11 +4,59 @@ import { Container } from "@/components/container";
 import { Card } from "@/components/card";
 import { Label } from "./components/label";
 import Image from "next/image";
+import { Metadata } from "next";
+
+interface PropsParams {
+  params: { id: string };
+}
+
+export async function generateMetadata({
+  params,
+}: PropsParams): Promise<Metadata> {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_API_URL}/next-api/?api=game&id=${params.id}`,
+      { next: { revalidate: 60 } }
+    );
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch game data");
+    }
+
+    const gameData: GameProps = await res.json();
+
+    return {
+      title: gameData.title || "Games",
+      description: `${gameData.description.slice(0, 100)}...`,
+      openGraph: {
+        images: [gameData.image_url],
+        title: gameData.title,
+      },
+      robots: {
+        index: true,
+        follow: true,
+        nocache: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          noimageindex: true,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Error generating metadata:", error);
+    return {
+      title: "Games",
+    };
+  }
+}
 
 async function getData(id: string) {
   try {
     const res = await fetch(
-      `${process.env.NEXT_API_URL}/next-api/?api=game&id=${id}`, {next: {revalidate: 60}});
+      `${process.env.NEXT_API_URL}/next-api/?api=game&id=${id}`,
+      { next: { revalidate: 60 } }
+    );
     return res.json();
   } catch (error) {
     throw new Error("Erro ao buscar dados");
@@ -18,18 +66,18 @@ async function getData(id: string) {
 async function getGameSorted() {
   try {
     const res = await fetch(
-      `${process.env.NEXT_API_URL}/next-api/?api=game_day`, {cache: "no-store"});
+      `${process.env.NEXT_API_URL}/next-api/?api=game_day`,
+      { cache: "no-store" }
+    );
     return res.json();
   } catch (error) {
     throw new Error("Erro ao buscar dados  ");
   }
 }
 
-export default async function Game({
-  params: { id },
-}: {
-  params: { id: string };
-}) {
+export default async function Game(props: { params: Promise<{ id: string }> }) {
+  const { id } = await props.params;
+
   const data: GameProps = await getData(id);
   const gameSorted: GameProps = await getGameSorted();
 
@@ -74,7 +122,7 @@ export default async function Game({
 
         <h2 className="font-bold text-lg mt-7 mb-2 ">Jogo recomendado:</h2>
         <div className="flex w-1/2 justify-center items-center">
-          <div className="flex-grow justify-center items-center" >
+          <div className="flex-grow justify-center items-center">
             <Card data={gameSorted} />
           </div>
         </div>
